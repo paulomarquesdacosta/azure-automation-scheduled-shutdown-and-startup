@@ -14,40 +14,40 @@ workflow Add-ResourceSchedule
 	    Optional, if this parameter is used, a VM will be tagged with a Schedule tag. If it is not provided te resource group will be tagged instead.
 	.PARAMETER Schedule
 	    Hash table that defines the schedule and Timezone of the resource. TzId is the time zone resource id and it can be obtained by exeuting [System.TimeZoneInfo]::GetSystemTimeZones() in a powershell command prompt.
-        Sample code on how to define the hashtable:
+			Sample code on how to define the hashtable:
    
-        $schedule= @{
-	                    "TzId"="Central Standard Time";
-	                    "0"= @{
-	                                "S"="11";
-	                                "E"="17"};
-	                    "1"= @{
-	                                "S"="9";
-	                                "E"="19"};
-	                    "2"= @{
-	                                "S"="9";
-	                                "E"="19"};
-	                    "3"= @{
-	                                "S"="9";
-	                                "E"="19"};
-	                    "4"= @{
-	                                "S"="9";
-	                                "E"="19"};
-	                    "5"= @{
-	                                "S"="9";
-	                                "E"="19"};
-	                    "6"= @{
-	                                "S"="11";
-	                                "E"="17"}
+			$schedule= @{
+							"TzId"="Central Standard Time";
+							"0"= @{
+										"S"="11";
+										"E"="17"};
+							"1"= @{
+										"S"="9";
+										"E"="19"};
+							"2"= @{
+										"S"="9";
+										"E"="19"};
+							"3"= @{
+										"S"="9";
+										"E"="19"};
+							"4"= @{
+										"S"="9";
+										"E"="19"};
+							"5"= @{
+										"S"="9";
+										"E"="19"};
+							"6"= @{
+										"S"="11";
+										"E"="17"}
 
-	                }
-	   }        
+						}
+		   }        
         
-       Where:
-            TzID - Time zone ID - this is the timezone of the resource where this schedule is being applied.
-            0, 1 , 2 , 3, 4, 5, 6 - numeric representation of days of week, Sunday starts in 0.
-            S - Start time, numeric value of the hour from 1 to 24.
-            E - End/Stop time, numeric value of the hour from 1 to 24
+		   Where:
+				TzID - Time zone ID - this is the timezone of the resource where this schedule is being applied.
+				0, 1 , 2 , 3, 4, 5, 6 - numeric representation of days of week, Sunday starts in 0.
+				S - Start time, numeric value of the hour from 1 to 24.
+				E - End/Stop time, numeric value of the hour from 1 to 24
 	.EXAMPLE
 		How to manually execute this runbook from a Powershell command prompt:
 		
@@ -84,24 +84,24 @@ workflow Add-ResourceSchedule
 	Param
 	(
 		[Parameter(Mandatory=$true)]
-	    [string]$SubscriptionName,
+		[string]$SubscriptionName,
 		
-	    [Parameter(Mandatory=$true)]
-	    [string]$ResourceGroupName,
+		[Parameter(Mandatory=$true)]
+		[string]$ResourceGroupName,
 	
-	    [Parameter(Mandatory=$false)]
-	    [string]$VMName,
+		[Parameter(Mandatory=$false)]
+		[string]$VMName,
 	
-	    [Parameter(Mandatory=$false)]
-	    $Schedule
+		[Parameter(Mandatory=$false)]
+		$Schedule
 	)
-	#
-	# Default schedule hash 
+	
+	# Default schedule hash table
 	if ($Schedule -eq $null)
 	{
 		# Sunday is 0
 		# it accept only hour numbers from 1 to 24 (so 24h notation)
-	     $schedule= @{
+		$schedule= @{
 	                    "TzId"="Central Standard Time";
 	                    "0"= @{
 	                                "S"="11";
@@ -131,8 +131,32 @@ workflow Add-ResourceSchedule
 	# Authenticating and setting up current subscription
 	Write-Output "Authenticating"
 	
-    $cred = Get-AutomationPSCredential -Name 'AutomationUser'
-	Add-AzureRmAccount -Credential $cred
+	$connectionName = "AzureRunAsConnection"
+	try
+	{
+		# Get the connection "AzureRunAsConnection "
+		$servicePrincipalConnection=Get-AutomationConnection -Name $connectionName         
+
+		Add-AzureRmAccount `
+			-ServicePrincipal `
+			-TenantId $servicePrincipalConnection.TenantId `
+			-ApplicationId $servicePrincipalConnection.ApplicationId `
+			-CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint 
+	}
+	catch
+	{
+		if (!$servicePrincipalConnection)
+		{
+			$ErrorMessage = "Connection $connectionName not found."
+			throw $ErrorMessage
+		}
+		else
+		{
+			Write-Error -Message $_.Exception
+			throw $_.Exception
+		}
+	}
+
 	Select-AzureRmSubscription -SubscriptionName $subscriptionName
 	
 	# Getting tags
