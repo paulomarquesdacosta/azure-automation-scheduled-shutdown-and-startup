@@ -42,8 +42,8 @@ workflow Test-ResourceSchedule
 	Param
 	(
 		[Parameter(Mandatory=$true)]
-	    [string]$SubscriptionName
-    )
+		[string]$SubscriptionName
+	)
     
 	function ContainsSchedule
 	{
@@ -63,7 +63,7 @@ workflow Test-ResourceSchedule
 		foreach ($tag in $tagList)
 		{
 			if ($tag.Name -eq "Schedule")
-	        {
+			{
 				return $true
 			}
 		}
@@ -89,7 +89,7 @@ workflow Test-ResourceSchedule
 		foreach ($tag in $tagList)
 		{
 			if ($tag.Name -eq "Schedule")
-	        {
+			{
 				return $tag.Value
 			}
 		}
@@ -105,8 +105,32 @@ workflow Test-ResourceSchedule
 	# Authenticating and setting up current subscription
 	Write-Output "Authenticating"
 
-    $cred = Get-AutomationPSCredential -Name 'AutomationUser'
-	Add-AzureRmAccount -Credential $cred
+	$connectionName = "AzureRunAsConnection"
+	try
+	{
+		# Get the connection "AzureRunAsConnection "
+		$servicePrincipalConnection=Get-AutomationConnection -Name $connectionName         
+
+		Add-AzureRmAccount `
+			-ServicePrincipal `
+			-TenantId $servicePrincipalConnection.TenantId `
+			-ApplicationId $servicePrincipalConnection.ApplicationId `
+			-CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint 
+	}
+	catch
+	{
+		if (!$servicePrincipalConnection)
+		{
+			$ErrorMessage = "Connection $connectionName not found."
+			throw $ErrorMessage
+		}
+		else
+		{
+			Write-Error -Message $_.Exception
+			throw $_.Exception
+		}
+	}
+
 	Select-AzureRmSubscription -SubscriptionName $subscriptionName	
 
 	Write-Output "Getting list of resource groups"
@@ -122,7 +146,7 @@ workflow Test-ResourceSchedule
 	foreach ($rg in $rgs)
 	{
 		Write-Output "Getting VMs from Resource Group $($rg.ResourceGroupName)"
-	    $vms = Find-AzureRmResource -ResourceGroupNameContains $rg.ResourceGroupName -ResourceType "Microsoft.Compute/virtualMachines"
+		$vms = Find-AzureRmResource -ResourceGroupNameContains $rg.ResourceGroupName -ResourceType "Microsoft.Compute/virtualMachines"
 		
 		foreach ($vm in $vms)
 		{
