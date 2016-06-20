@@ -8,15 +8,15 @@ workflow Remove-ResourceSchedule
 	.PARAMETER SubscriptioName
 		Name of Azure subscription where resource groups and resources are located.
 	.PARAMETER ResourceGroupName
-        Name of the resource group where the VM resides
+		Name of the resource group where the VM resides
 	.PARAMETER VmName
-	    Optional, if this parameter is used, a VM will have the Schedule tag removed. If it is not provided te resource group will have the tag removed instead.
+		Optional, if this parameter is used, a VM will have the Schedule tag removed. If it is not provided te resource group will have the tag removed instead.
 	.EXAMPLE
 		How to manually execute this runbook from a Powershell command prompt:
 		
-        Add-AzureRmAccount
+		Add-AzureRmAccount
         
-        Select-AzureRmSubscription -SubscriptionName pmcglobal
+		Select-AzureRmSubscription -SubscriptionName pmcglobal
         
 		$params = @{"SubscriptioName"="pmcglobal";"ResourceGroupName"="pmcrg01";"VmName"="pmcvm01"}
 		Start-AzureRmAutomationRunbook -Name "Remove-ResourceSchedule" -Parameters $params -AutomationAccountName "pmcAutomation01" -ResourceGroupName "rgAutomation"
@@ -30,35 +30,59 @@ workflow Remove-ResourceSchedule
 		
 	.DISCLAIMER
 		This Sample Code is provided for the purpose of illustration only and is not intended to be used in a production environment.
-	    THIS SAMPLE CODE AND ANY RELATED INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED,
-	    INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.  
-	    We grant You a nonexclusive, royalty-free right to use and modify the Sample Code and to reproduce and distribute the object
-	    code form of the Sample Code, provided that You agree: (i) to not use Our name, logo, or trademarks to market Your software
-	    product in which the Sample Code is embedded; (ii) to include a valid copyright notice on Your software product in which the
-	    Sample Code is embedded; and (iii) to indemnify, hold harmless, and defend Us and Our suppliers from and against any claims
-	    or lawsuits, including attorneys’ fees, that arise or result from the use or distribution of the Sample Code.
-	    Please note: None of the conditions outlined in the disclaimer above will supersede the terms and conditions contained
-	    within the Premier Customer Services Description.
+		THIS SAMPLE CODE AND ANY RELATED INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED,
+		INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.  
+		We grant You a nonexclusive, royalty-free right to use and modify the Sample Code and to reproduce and distribute the object
+		code form of the Sample Code, provided that You agree: (i) to not use Our name, logo, or trademarks to market Your software
+		product in which the Sample Code is embedded; (ii) to include a valid copyright notice on Your software product in which the
+		Sample Code is embedded; and (iii) to indemnify, hold harmless, and defend Us and Our suppliers from and against any claims
+		or lawsuits, including attorneys’ fees, that arise or result from the use or distribution of the Sample Code.
+		Please note: None of the conditions outlined in the disclaimer above will supersede the terms and conditions contained
+		within the Premier Customer Services Description.
 	#>
 
 	[cmdletBinding()]
 	Param
 	(
 		[Parameter(Mandatory=$true)]
-	    [string]$SubscriptionName,
+		[string]$SubscriptionName,
 		
-	    [Parameter(Mandatory=$true)]
-	    [string]$ResourceGroupName,
+		[Parameter(Mandatory=$true)]
+		[string]$ResourceGroupName,
 	
-	    [Parameter(Mandatory=$false)]
-	    [string]$VMName	
+		[Parameter(Mandatory=$false)]
+		[string]$VMName	
 	)
 
 	# Authenticating and setting up current subscription
 	Write-Output "Authenticating"
 	
-    $cred = Get-AutomationPSCredential -Name 'AutomationUser'
-	Add-AzureRmAccount -Credential $cred
+	$connectionName = "AzureRunAsConnection"
+	try
+	{
+		# Get the connection "AzureRunAsConnection "
+		$servicePrincipalConnection=Get-AutomationConnection -Name $connectionName         
+
+		Add-AzureRmAccount `
+			-ServicePrincipal `
+			-TenantId $servicePrincipalConnection.TenantId `
+			-ApplicationId $servicePrincipalConnection.ApplicationId `
+			-CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint 
+	}
+	catch
+	{
+		if (!$servicePrincipalConnection)
+		{
+			$ErrorMessage = "Connection $connectionName not found."
+			throw $ErrorMessage
+		}
+		else
+		{
+			Write-Error -Message $_.Exception
+			throw $_.Exception
+		}
+	}
+
 	Select-AzureRmSubscription -SubscriptionName $subscriptionName
 
 	Write-Output "Selecting tags and leaving Schedule tag behing if it exists"
