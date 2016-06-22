@@ -186,21 +186,21 @@ workflow Test-ResourceSchedule
 
 		$schedule = ConvertFrom-Json $vm.Schedule 
 
-		$resourceTz = [System.TimeZoneInfo]::FindSystemTimeZoneById($schedule.TzId)
-		$utcCurrentTime = [datetime]::UtcNow
-		$resourceTzCurrentTime = [System.TimeZoneInfo]::ConvertTimeFromUtc($utcCurrentTime,$resourceTz)
-
 		if ($schedule.psobject.Properties["TzId"] -ne $null)
 		{
+			$resourceTz = [System.TimeZoneInfo]::FindSystemTimeZoneById($schedule.TzId)
+			$utcCurrentTime = [datetime]::UtcNow
+			$resourceTzCurrentTime = [System.TimeZoneInfo]::ConvertTimeFromUtc($utcCurrentTime,$resourceTz)
+
 			if ($schedule.psobject.Properties[$resourceTzCurrentTime.DayOfWeek.value__] -ne $null)
 			{
-
 				if ($schedule.($resourceTzCurrentTime.DayOfWeek.value__).PSObject.Properties["S"] -ne $null)
 				{
-					[int]$startTime = 0
-					$startTimeValid = [int]::TryParse($schedule.($resourceTzCurrentTime.DayOfWeek.value__).S,[ref]$startTime)
-					
-					if (!$startTimeValid)
+					try
+					{
+						$startTime = [int]::Parse($schedule.($resourceTzCurrentTime.DayOfWeek.value__).S)
+					}
+					catch
 					{
 						throw "Invalid Startup Time for day of week $($resourceTzCurrentTime.DayOfWeek.value__)"
 					}
@@ -212,9 +212,11 @@ workflow Test-ResourceSchedule
 				
 				if ($schedule.($resourceTzCurrentTime.DayOfWeek.value__).PSObject.Properties["E"] -ne $null)
 				{
-					[int]$endTime = 0
-					$endTimeValid = [int]::TryParse($schedule.($resourceTzCurrentTime.DayOfWeek.value__).E,[ref]$endTime)
-					if (!$endTimeValid)
+					try
+					{
+						$endTime = [int]::Parse($schedule.($resourceTzCurrentTime.DayOfWeek.value__).E)
+					}
+					catch
 					{
 						throw "Invalid End/Shutdown Time for day of week $($resourceTzCurrentTime.DayOfWeek.value__)"
 					}
@@ -223,6 +225,8 @@ workflow Test-ResourceSchedule
 				{
 					throw "Schedule day of week $($resourceTzCurrentTime.DayOfWeek.value__) is missing End/Shutdown Time (E) property."
 				}
+
+				Write-Output "Identified Start Time $startTime and End Time $endTime"
 
 				if (($startTime -ne 0) -and ($endTime -ne 0))
 				{
