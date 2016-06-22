@@ -194,16 +194,43 @@ workflow Test-ResourceSchedule
 		{
 			if ($schedule.psobject.Properties[$resourceTzCurrentTime.DayOfWeek.value__] -ne $null)
 			{
-				[int]$StartTime = $schedule.($resourceTzCurrentTime.DayOfWeek.value__).S
-				[int]$EndTime = $schedule.($resourceTzCurrentTime.DayOfWeek.value__).E
 
-				if (($StartTime -ne 0) -and ($EndTime -ne 0))
+				if ($schedule.($resourceTzCurrentTime.DayOfWeek.value__).PSObject.Properties["S"] -ne $null)
 				{
-					if ($StartTime -lt $EndTime)
+					[int]$startTime = 0
+					$startTimeValid = [int]::TryParse($schedule.($resourceTzCurrentTime.DayOfWeek.value__).S,[ref]$startTime)
+					
+					if (!$startTimeValid)
+					{
+						throw "Invalid Startup Time for day of week $($resourceTzCurrentTime.DayOfWeek.value__)"
+					}
+				}
+				else
+				{
+					throw "Schedule day of week $($resourceTzCurrentTime.DayOfWeek.value__) is missing Start Time (S) property."
+				}
+				
+				if ($schedule.($resourceTzCurrentTime.DayOfWeek.value__).PSObject.Properties["E"] -ne $null)
+				{
+					[int]$endTime = 0
+					$endTimeValid = [int]::TryParse($schedule.($resourceTzCurrentTime.DayOfWeek.value__).E,[ref]$endTime)
+					if (!$endTimeValid)
+					{
+						throw "Invalid End/Shutdown Time for day of week $($resourceTzCurrentTime.DayOfWeek.value__)"
+					}
+				}
+				else
+				{
+					throw "Schedule day of week $($resourceTzCurrentTime.DayOfWeek.value__) is missing End/Shutdown Time (E) property."
+				}
+
+				if (($startTime -ne 0) -and ($endTime -ne 0))
+				{
+					if ($startTime -lt $endTime)
 					{
 						Write-Output "     Checking if shutdown or startup should happen for vm $($vm.name)"
-						Write-Output "     Start Time: $StartTime"
-						Write-Output "     End Time: $EndTime"
+						Write-Output "     Start Time: $startTime"
+						Write-Output "     End Time: $endTime"
 						Write-Output "     Current Time: $($resourceTzCurrentTime.Hour)"
 						
 						# Performing some conversions in order to obtain the VM status
@@ -212,7 +239,7 @@ workflow Test-ResourceSchedule
 
 						$vmStatus = $vmStatusJson | ConvertFrom-Json
 
-						if ($azRmPsVer -ge [Version]"1.3")
+						if ($azRmPsVer.Version -ge [Version]"1.3")
 						{
 							$vmStatusCode = $vmStatus.Statuses[1].code
 						}
@@ -224,7 +251,7 @@ workflow Test-ResourceSchedule
 				
 						Write-Output "     VM Status Code: $vmStatusCode"
 
-						if (($resourceTzCurrentTime.Hour -ge $StartTime) -and ($resourceTzCurrentTime.Hour -lt $EndTime))
+						if (($resourceTzCurrentTime.Hour -ge $startTime) -and ($resourceTzCurrentTime.Hour -lt $endTime))
 						{
 							Write-Output "   Start - Comparing status code to check if it will be started or if it is already in this state."
 							if ($vmStatusCode -eq "PowerState/deallocated" -or $vmStatusCode -eq "PowerState/stopped")
@@ -233,7 +260,7 @@ workflow Test-ResourceSchedule
 								$vmsToStart += $vm
 							}
 						}
-						elseif (($resourceTzCurrentTime.Hour -le $startTime) -or ($resourceTzCurrentTime.Hour -ge $EndTime))
+						elseif (($resourceTzCurrentTime.Hour -le $startTime) -or ($resourceTzCurrentTime.Hour -ge $endTime))
 						{
 							Write-Output "   Shutdown - Comparing status code to check if it will be shutdown or if it is already in this state."
 							if ($vmStatusCode -eq "PowerState/running")
@@ -245,22 +272,22 @@ workflow Test-ResourceSchedule
 					}
 					else
 					{
-						Write-Output "VM ($vm.Name) contains a start time greater than shutdown time, evaluation will be skipped."
+						Write-Output "VM $($vm.Name) contains a start time greater than shutdown time, evaluation will be skipped."
 					}
 				}
 				else
 				{
-					Write-Output "VM ($vm.Name) contains schedule with start and end time equal to 0, this prevents any action on this VM by the runbook."
+					Write-Output "VM $($vm.Name) contains schedule with start and end time equal to 0, this prevents any action on this VM by the runbook."
 				}
 			}
 			else
 			{
-				Write-Output "VM ($vm.Name) does not have definition for day of week $($resourceTzCurrentTime.DayOfWeek.value__) any evaluation will be skipped"
+				Write-Output "VM $($vm.Name) does not have definition for day of week $($resourceTzCurrentTime.DayOfWeek.value__) any evaluation will be skipped"
 			}	  
 		}
 		else
 		{
-			Write-Output "VM ($vm.Name) does not have definition for time zone and any evaluation will be skipped"
+			Write-Output "VM $($vm.Name) does not have definition for time zone and any evaluation will be skipped"
 		}
 	}
 
