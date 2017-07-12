@@ -226,7 +226,7 @@ workflow Test-ResourceSchedule
 					throw "Schedule day of week $($resourceTzCurrentTime.DayOfWeek.value__) is missing End/Shutdown Time (E) property."
 				}
 
-				Write-Output "Identified Start Time $startTime and End Time $endTime"
+				Write-Output "   Identified Start Time $startTime and End Time $endTime"
 
 				if (($startTime -ne 0) -and ($endTime -ne 0))
 				{
@@ -239,7 +239,7 @@ workflow Test-ResourceSchedule
 						
 						# Performing some conversions in order to obtain the VM status
 						$vmFullStatus = Get-AzureRmVM -ResourceGroupName $vm.ResourceGroupName -Name $vm.Name -Status
-						$vmStatusJson = $vmFullStatus | ConvertTo-Json -depth 999
+						$vmStatusJson = $vmFullStatus | ConvertTo-Json -depth 100
 
 						$vmStatus = $vmStatusJson | ConvertFrom-Json
 
@@ -255,7 +255,7 @@ workflow Test-ResourceSchedule
 				
 						Write-Output "     VM Status Code: $vmStatusCode"
 
-						if (($resourceTzCurrentTime.Hour -ge $startTime) -and ($resourceTzCurrentTime.Hour -lt $endTime))
+						if (($startTime -ne -1) -and ($resourceTzCurrentTime.Hour -ge $startTime) -and ($resourceTzCurrentTime.Hour -lt $endTime))
 						{
 							Write-Output "   Start - Comparing status code to check if it will be started or if it is already in this state."
 							if ($vmStatusCode -eq "PowerState/deallocated" -or $vmStatusCode -eq "PowerState/stopped")
@@ -264,7 +264,7 @@ workflow Test-ResourceSchedule
 								$vmsToStart += $vm
 							}
 						}
-						elseif (($resourceTzCurrentTime.Hour -le $startTime) -or ($resourceTzCurrentTime.Hour -ge $endTime))
+						elseif (($endTime -ne -1) -and ($resourceTzCurrentTime.Hour -le $startTime) -or ($resourceTzCurrentTime.Hour -ge $endTime))
 						{
 							Write-Output "   Shutdown - Comparing status code to check if it will be shutdown or if it is already in this state."
 							if ($vmStatusCode -eq "PowerState/running")
@@ -273,6 +273,10 @@ workflow Test-ResourceSchedule
 								$vmsToStop += $vm
 							}
 						}
+                        else
+                        {
+                            Write-Output "   VM $($vm.name): no action needed at this time."
+                        }
 					}
 					else
 					{
