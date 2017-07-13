@@ -239,7 +239,7 @@ workflow Test-ResourceSchedule
 						
 						# Performing some conversions in order to obtain the VM status
 						$vmFullStatus = Get-AzureRmVM -ResourceGroupName $vm.ResourceGroupName -Name $vm.Name -Status
-						$vmStatusJson = $vmFullStatus | ConvertTo-Json -depth 999
+						$vmStatusJson = $vmFullStatus | ConvertTo-Json -depth 100
 
 						$vmStatus = $vmStatusJson | ConvertFrom-Json
 
